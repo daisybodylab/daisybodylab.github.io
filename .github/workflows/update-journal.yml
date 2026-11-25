@@ -1,0 +1,38 @@
+# 네이버 블로그 새 글을 홈페이지 저널에 자동 반영합니다.
+# GitHub에 사이트를 올렸을 때 동작합니다. (매일 오전 9시 · 오후 3시 · 오후 9시, 한국 시간)
+# Actions 탭에서 'Run workflow' 버튼으로 바로 실행할 수도 있습니다.
+name: Update Daisy Journal
+
+on:
+  schedule:
+    - cron: "7 0,6,12 * * *"   # UTC 기준 → 한국 시간 09:07 / 15:07 / 21:07
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Fetch latest blog posts
+        run: node scripts/update-journal.mjs
+        env:
+          BLOG_ID: daisy_bodylab
+          POST_COUNT: "3"
+          CATEGORIES: ""        # 특정 카테고리만 보이려면 "체형과 움직임,재활운동 가이드" 처럼 입력
+      - name: Commit changes
+        run: |
+          if [ -n "$(git status --porcelain data/journal.json images/journal)" ]; then
+            git config user.name "daisy-journal-bot"
+            git config user.email "daisy-journal-bot@users.noreply.github.com"
+            git add data/journal.json images/journal
+            git commit -m "저널: 네이버 블로그 최신 글 반영"
+            git push
+          else
+            echo "새 글 없음"
+          fi
